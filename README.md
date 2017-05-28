@@ -69,7 +69,10 @@ GRANT ALL ON TABLE httplog TO postgres;
 GRANT SELECT, INSERT ON TABLE httplog TO "@httplog";
 ```
 
+## Client
+
 ## /etc/default/httplog
+
 ```bash
 : ${HTTPLOG_BASEURL:="https://log.example.com/$( cat /etc/httplog-hostid )/${HTTPLOG_FACILITY:=${0##*/}}"}
 
@@ -84,14 +87,14 @@ httplog_send_message() {
 }
 ```
 
-## Client
-
 ### /etc/httplog-hostid
+
 ```
 ACME_Ltd:host.example.com:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
 ### /usr/local/bin/httplog
+
 ```bash
 #!/bin/bash
 
@@ -103,6 +106,7 @@ httplog_send_message "$2" "$3"
 ```
 
 ### /usr/local/bin/foobar
+
 ```bash
 #!/bin/bash
 
@@ -111,4 +115,55 @@ httplog_send_message "$2" "$3"
 httplog_send_message INFO 'Hello World!'
 ```
 
+### httplog.js (WSH)
+
+```javascript
+/*
+%SystemRoot%\system32\wscript.exe httplog.js "FACILITY" "LEVEL" "MESSAGE"
+%SystemRoot%\system32\cscript.exe //nologo httplog.js "FACILITY" "LEVEL" "MESSAGE"
+*/
+var baseurl = 'https://log.w3tools.de';
+var hostid = 'w3tools.de:test:2852f2fb-7f29-4204-b624-2f959e888699';
+
+var facility = WScript.Arguments.Unnamed(0);
+var level = WScript.Arguments.Unnamed(1);
+var message = WScript.Arguments.Unnamed(2).replace( '&' , '%26' );
+
+var hosttime = ( function( date ) {
+    var tz_offset = -date.getTimezoneOffset();
+    var tz_sign = tz_offset < 0 ? ( tz_offset = -tz_offset, '-' ) : '+';
+    return (
+        [
+            [
+                [
+                    date.getFullYear(),
+                    ( '0' + ( 1 + date.getMonth() ) ).slice( -2 ),
+                    ( '0' + date.getDate() ).slice( -2 )
+                ].join( '-' ),
+                [
+                    ( '0' + date.getHours() ).slice( -2 ),
+                    ( '0' + date.getMinutes() ).slice( -2 ),
+                    [ ( '0' + date.getSeconds() ).slice( -2 ),
+                      ( '000' + date.getMilliseconds() ).slice( -3 )
+                    ].join( '.' )
+                ].join( ':' )
+            ].join( 'T' ),
+            tz_sign,
+            [
+                ( '0' + parseInt( tz_offset / 60 ) ).slice( -2 ),
+                ( '0' + ( tz_offset % 60 ) ).slice( -2 )
+            ].join( ':' )
+        ].join( '' )
+    );
+} )( new Date() );
+
+
+var url = [ baseurl, hostid, facility, hosttime, level ]. join( '/' ) + '?_=' + message;
+
+var xmldoc = new ActiveXObject( 'Msxml2.DOMDocument.6.0' );
+xmldoc.async = false;
+var res = xmldoc.load( url );
+
+// WScript.Echo( url );
+```
 <https://log.example.com/ACME_Ltd:host.example.com:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/FACILITY/HOSTTIME/LEVEL?_=MESSAGE>

@@ -52,9 +52,9 @@ $superadmin = is_link( "$dir/groups" );
 
 if ( $_REQUEST[ 'do' ] ) {
     $group2 = $_REQUEST[ 'group' ];
-    preg_match( '/^(\w[-.\w]+\w)$/', $group2 ) or die( $status . 1);
+    preg_match( '/^(\w[-.\w]+\w)$/', $group2 ) or die( $status );
     $name = $_REQUEST[ 'name' ];
-    preg_match( '/^(\w[-.\w]+\w)$/', $name ) or die( $status . 2 );
+    preg_match( '/^(\w[-.\w]+\w)$/', $name ) or die( $status );
     $dir2 = "$access_dir/$group" . ( $group === $group2 ? '' : "/groups/$group2" );
     
     if ( $_REQUEST[ 'type' ] === 'host' ) {
@@ -136,8 +136,8 @@ if ( $_REQUEST[ 'do' ] ) {
             @mkdir( "$access_dir/$name/refs" );
             symlink( "../../$group2", "$access_dir/$name/refs/$group2" );
         } elseif ( $_REQUEST[ 'do' ] === 'remove' ) {
-            ( $group === $group2 ) and ( $group === $name ) and die( $status . 1 );
-            @unlink( "$access_dir/$group/groups/$group2/groups/$name" ) or die( $status . 2 );
+            ( $group === $group2 ) and ( $group === $name ) and die( $status );
+            @unlink( "$access_dir/$group/groups/$group2/groups/$name" ) or die( $status );
             unlink( "$access_dir/$name/refs/$group2" );
             @rmdir( "$access_dir/$name/refs" );
         }
@@ -177,7 +177,8 @@ foreach ( $groups as $group ) {
     if ( $content = @file_get_contents( "$dir/filter" ) ) {
         $data[ 'access' ][ $group ][ 'filter' ] = $content;
     }
-    @$data[ 'access' ][ $group ][ 'refs' ] = array_merge( array_filter( scandir( "$dir/refs/" ), filter_dot ) );
+    // TODO: handle refs
+    // @$data[ 'access' ][ $group ][ 'refs' ] = array_merge( array_filter( scandir( "$dir/refs/" ), filter_dot ) );
 }
 
 header( 'Status: 200' ); $status = 'OK';
@@ -219,12 +220,13 @@ function parseName( name, hasKey ) {
 }
 
 var data = JSON.parse( document.getElementById( 'data' ).text );
+var myGroups = data.access[ data.group ] ? data.access[ data.group ].groups : false;
 
 var ul = document.body.appendChild( createElement( 'ul' ) );
 /**********************************************************************
  * create group
  *********************************************************************/
-if ( data.access[ data.group ].groups ) {
+if ( myGroups ) {
     var li = ul.appendChild( createElement( 'li' ) );
     var form = li.appendChild( createElement( 'form' ) );
     form.appendChild( createInput( 'hidden', 'type', 'group' ) );
@@ -246,7 +248,7 @@ for ( var group in data.access ) {
     h2.innerText = group.name;
     h2.id = group.name;
     
-    if ( data.access[ data.group ].groups ) {
+    if ( myGroups ) {
         var form = li.appendChild( createElement( 'form' ) );
         form.appendChild( createInput( 'hidden', 'type', 'group' ) );
         form.appendChild( createInput( 'hidden', 'name', group.full ) );
@@ -257,14 +259,14 @@ for ( var group in data.access ) {
      directories
      *****************************************************************/
     [ 'hosts', 'groups', 'views', 'admins' ].forEach( function( x ){
-        if ( data.access[ data.group ] === true || data.access[ data.group ][ x ] ) {
+        if ( myGroups !== false && ( myGroups === true || data.access[ data.group ][ x ] ) ) {
             var form = li.appendChild( createElement( 'form' ) );
             form.appendChild( createElement( 'span' ) ).innerText = x;
             form.appendChild( createInput( 'hidden', 'type', 'dir' ) );
             form.appendChild( createInput( 'hidden', 'name', x ) );
             form.appendChild( createInput( 'hidden', 'group', group.full ) );
             form.appendChild( createInput( 'submit', 'do', data.access[ group.full ][ x ] ? 'delete' : 'create' ) );
-            if ( x === 'groups' && data.access[ data.group ].groups === true && ! data.access[ group.name ].groups ) {
+            if ( x === 'groups' && myGroups === true && ! data.access[ group.name ].groups ) {
                 var form = li.appendChild( createElement( 'form' ) );
                 // form.appendChild( createElement( 'span' ) ).innerText = x;
                 form.appendChild( createInput( 'hidden', 'type', 'dir' ) );
@@ -347,7 +349,7 @@ for ( var group in data.access ) {
         var li3 = ul3.appendChild( createElement( 'li' ) );
         li3.appendChild( createElement( 'h4' ) ).innerText = 'filter';
         li3.appendChild( createElement( 'pre' ) ).innerText = data.access[ group.full ].filter;
-        if ( data.access[ data.group ].groups === true ) {
+        if ( myGroups === true ) {
             var form = li3.appendChild( createElement( 'form' ) );
             form.appendChild( createInput( 'hidden', 'type', 'filter' ) );
             form.appendChild( createInput( 'hidden', 'group', group.full ) );
