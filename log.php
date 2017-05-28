@@ -33,27 +33,23 @@
 # WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-header( 'Status: 403' );
+header( 'Status: 400' ); $status = 'Bad Request';
 
-$regexp = '#^/+(\w[-\w]+\w)(?::|/+)(\w[-.\w]+\w?)/+(.*?)/+(\w[-+.:\w]+\w)/+(.*?)(?:/|$)#';
-preg_match( $regexp, $_SERVER['PATH_INFO'] . '/INFO', $m ) or die( 'Forbidden' );
+$regexp = '#^/(\w[-.\w]+\w):(\w[-.\w]+\w):(\w[-\w]+\w)/+(.*?)/+(\w[-+.:\w]+\w)/+(.*?)(?:/|$)#';
+preg_match( $regexp, $_SERVER['PATH_INFO'] . '/INFO', $m ) or die( $status );
+list( $_, $groupname, $hostname, $key, $facility, $hosttime, $level ) = $m;
 
-extract( array_combine( [ 'token', 'hostname', 'facility', 'hosttime', 'level' ], array_slice( $m, 1 ) ) );
+require( 'log.conf.php' );
 
-$tokens_rel = 'access';
+$host_base = "$access_dir/$groupname/hosts/$hostname";
 
-file_exists( dirname( $_SERVER['SCRIPT_FILENAME'] ) . "/$tokens_rel/$token/$hostname" ) or die( 'Forbidden' );
-
-header( 'Status: 400' );
-
-$dbname = 'weblogger';
-$dbuser = 'weblogger';
-$dbpass = 'none';
-$dbtable = 'log';
+file_exists( "$host_base.$key" ) or die( $status );
 
 ini_set( 'request_order', 'PG' );
 
 pg_insert( pg_connect( "host=localhost dbname=$dbname user=$dbuser password=$dbpass" ), $dbtable, [
+    'remote_addr' => $_SERVER[ 'REMOTE_ADDR' ],
+    'groupname'   => $groupname,
     'hostname' => $hostname,
     'hosttime' => $hosttime,
     'facility' => $facility,
@@ -61,6 +57,8 @@ pg_insert( pg_connect( "host=localhost dbname=$dbname user=$dbuser password=$dbp
     'message'  => $_REQUEST[ '_' ]
   ]) or die( 'Bad Request' );
 
-header( 'Status: 200' );
+@include( "$host_base.$facility.php" ) || @include( "$host_base.php" );
+
+header( 'Status: 200' ); $status = 'OK';
 header( 'Content-Type: text/plain' );
-echo 'OK';
+echo $status;
