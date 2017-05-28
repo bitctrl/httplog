@@ -69,6 +69,8 @@ GRANT ALL ON TABLE httplog TO postgres;
 GRANT SELECT, INSERT ON TABLE httplog TO "@httplog";
 ```
 
+## Client
+
 ## /etc/default/httplog
 ```bash
 : ${HTTPLOG_BASEURL:="https://log.example.com/$( cat /etc/httplog-hostid )/${HTTPLOG_FACILITY:=${0##*/}}"}
@@ -83,8 +85,6 @@ httplog_send_message() {
   echo "$ts $HTTPLOG_FACILITY $level $message"
 }
 ```
-
-## Client
 
 ### /etc/httplog-hostid
 ```
