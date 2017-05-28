@@ -7,10 +7,6 @@ ErrorDocument 400 "Bad Request"
 
 RewriteEngine on
 
-#RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI}  !-f
-#RewriteRule .* /log.php$0
-#RewriteRule !/(query|admin)?log.php(/|$) - [R=400,L]
-
 RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI}  -f
 RewriteRule .* - [R=400,L]
 RewriteRule ^/(?:(query|admin)/)?(.*) /$1log.php/$2
