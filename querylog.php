@@ -32,86 +32,127 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 # WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-header( 'Status: 403' );
 
-$regexp = '#^(\w[-\w]+\w)[:/](\w+)$#';
-preg_match( $regexp, $_REQUEST[ 'a' ], $m ) or die( 'Forbidden' );
+header( 'Status: 400' ); $status = 'Bad Request';
 
-extract( array_combine( [ 'token', 'user' ], array_slice( $m, 1 ) ) );
+$regexp = '#^/(\w[-.\w]+\w):(\w[-.\w]+\w):(\w[-\w]+\w)$#';
+preg_match( $regexp, $_SERVER['PATH_INFO'], $m ) or die( $status );
+list( $_, $group, $view, $key ) = $m;
 
-$access_rel = 'access';
+require( 'log.conf.php' );
 
-$filter = trim( file_get_contents(
-    dirname( $_SERVER['SCRIPT_FILENAME'] ) . "/$access_rel/$token/$user.d/query" ) ) or die( 'Forbidden' );
+$group_dir = "$access_dir/$group";
 
-$dbname = 'weblogger';
-$dbuser = $filter != 'true' ? 'weblogger.query' : 'weblogger';
-$dbpass = 'none';
-$dbtable = 'log';
-$where = trim( $_REQUEST[ 'q' ] );
-if ( $where == '' ) {
-	$where = 'true';
+$viewfilter = trim( @file_get_contents( "$group_dir/views/$view.$key" ) ) or die( $status );
+
+if ( $super = is_link( "$group_dir/groups" ) ) {
+    $groups = 'true';
+} else {
+    @$groups = array_filter( scandir( "$group_dir/groups/" ), function( $x ){ return $x[ 0 ] !== '.'; } );
+    $groups or ( $groups = [ $group ] );
+    $groups = 'groupname in (' . implode( ',', array_map( function( $x ){ return "'$x'"; }, $groups ) ) . ')';
+} 
+$groupfilter = trim( @file_get_contents( "$group_dir/filter" ) ) or $groupfilter = 'true';
+
+if ( $group === 'w3tools.de' ) {
+    ini_set( 'display_errors', 'on' );
 }
 
-header( 'Status: 400' );
+$qryfilter = ( $_REQUEST[ 'q' ] ? check_sql_filter( $_REQUEST[ 'q' ] ) : 'true' ) or die( $status );
 
-#preg_match( '/[\'()\w\s]/', $where ) or die( '</body></html>' );
+#TODO: name of view ?
+$pgview = 'view_' . sha1( "${group}_${view}_${qryfilter}" ); 
 
-$query = "select logid, logctime, hostname, hosttime, facility, level, message from $dbtable " .
-    "where ( $filter ) and ( $where ) order by logctime desc limit 500;";
+@pg_connect( "host=localhost dbname=$dbname user=$dbuser password=$dbpass" ) or die( $status );
 
-$result = pg_query(
-    pg_connect( "host=localhost dbname=$dbname user=$dbuser password=$dbpass" ), $query ) or die( 'Bad Request' );
+$logid = $super ? 'logid' : "'' as logid";
+$query = <<<EOT
+create temporary view "$pgview" as
+    select
+        $logid, logtime, hosttime, remote_addr, hostname, facility, level, message
+      from $dbtable
+      where (
+        ( $groups )
+        and
+        ( $groupfilter )
+        and
+        ( $viewfilter )
+        and
+        ( $qryfilter )
+      )
+      order by logtime desc;
+EOT;
 
-header( 'Status: 200' );
+@pg_query( $query ) or die( $status );
 
+$result = @pg_query( "select * from \"$pgview\" limit 500;" ) or die( $status );
+
+@pg_query( "drop view \"$pgview\";" ) or die( $status );
+
+header( 'Status: 200' ); $status = 'OK';
+
+$rows =substr_count( $_REQUEST[ 'q' ], "\n" ) + 3;
 ?>
 <html lang="en">
 <head>
-<title>querylog</title>
+<title><?= "$view - $group - querylog" ?></title>
 <style>
-tbody tr:hover { background-color: antiquewhite; }
+body { background: #fff; color: #000; }
+tr > th:first-of-type, tr > td:first-of-type { display: none; }
+.super tr > th:first-of-type, .super tr > td:first-of-type { display: table-cell; }
+td { width: 1%; }
+td:last-of-type { width: 100%; }
+th:nth-of-type( 1 ), td:nth-of-type( 1 ),
+th:nth-of-type( 4 ), td:nth-of-type( 4 )
+ { font-size: xx-small; }
+th:nth-of-type( 7 ),
+td:nth-of-type( 7 ) { font-size: small; }
+tr.level_INFO          { background-color: #ddf; }
+tr.level_INFO:hover    { background-color: #ccf; }
+tr.level_SUCCESS       { background-color: #dfd; }
+tr.level_SUCCESS:hover { background-color: #bfb; }
+tr.level_ERROR         { background-color: #fdd; color: #000; }
+tr.level_ERROR:hover   { background-color: #fbb; color: #000; }
 </style>
 </head>
 <body>
 <form method="GET">
-<input name="a" type="hidden" value="<?= htmlspecialchars( "$token:$user" ) ?>">
-<textarea name="q" autofocus style="width: 100%; height: 4em;"><?= htmlspecialchars( $_REQUEST[ 'q' ] ) ?></textarea>
-<input type="submit">
+<textarea name="q" rows="<?= $rows ?>" autofocus style="width: 100%;"><?= htmlspecialchars( $_REQUEST[ 'q' ] ) ?></textarea>
+<input type="submit" value="Filter">
+<tt> '/' = E'\x2f'; '-' = E'\x2d' ';' = E'\x3b', '(' = E'\x28', 'e' = E'\x45', 'E' = E'\x65'</tt>
 </form>
-<table border="1">
+<?= /* FIXME: 4dev */ false ? "<pre>$query</pre>" : '' ?>
+<table border="1"<?= $super ? 'class="super"' : '' ?>>
 <thead>
 <tr>
-<?= $filter != 'true' ? '' : '<th>logid</th>' ?><th>logctime</th><th>hosttime</th><th>hostname</th><th>facility</th><th>level</th><th>message</th></tr>
+<th>logid</th><th>logtime</th><th>hosttime</th><th>remote_addr</th><th>hostname</th><th>facility</th><th>level</th><th>message</th></tr>
 </thead>
 <tbody>
 <?php
-if ( $filter != 'true' ) {
-  while( $row = pg_fetch_assoc( $result ) ) { 
-    printf( "<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n",
-      $row[ 'logctime' ],
-      $row[ 'hosttime' ],
-      $row[ 'hostname' ],
-      $row[ 'facility' ],
-      $row[ 'level' ],
-      htmlspecialchars( $row[ 'message' ]
-      ));
-  }
-} else {
-  while( $row = pg_fetch_assoc( $result ) ) { 
-    printf( "<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n",
-      $row[ 'logid' ],
-      $row[ 'logctime' ],
-      $row[ 'hosttime' ],
-      $row[ 'hostname' ],
-      $row[ 'facility' ],
-      $row[ 'level' ],
-      htmlspecialchars( $row[ 'message' ]
-      ));
-  }
+while( $row = pg_fetch_assoc( $result ) ) { 
+$level = $row[ 'level' ];
+printf( "<tr class=\"level_$level\"><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n",
+  $row[ 'logid' ],
+  $row[ 'logtime' ],
+  $row[ 'hosttime' ],
+  $row[ 'remote_addr' ],
+  #implode( '<wbr>.', explode( '.', $row[ 'hostname' ], 2 ) ),
+  preg_replace( '/\./', '<wbr>.', $row[ 'hostname' ], 2 ),
+  $row[ 'facility' ],
+  $level,
+  htmlspecialchars( $row[ 'message' ]
+  ));
 }
 ?>
 </tbody>
 </table>
+<script>
+addEventListener( 'keydown', function( event ){
+    if ( event.key === 'F5' && !event.ctrlKey && !event.shiftKey && !event.shiftKey ) {
+        event.preventDefault();
+        document.forms[ 0 ].submit();
+    }
+});
+</script>
 </body>
 </html>
