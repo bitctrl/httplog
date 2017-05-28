@@ -58,7 +58,7 @@ CREATE TABLE httplog
   message character varying NOT NULL,
   remote_addr character varying NOT NULL,
   groupname character varying NOT NULL,
-  CONSTRAINT log_pkey PRIMARY KEY (logid)
+  CONSTRAINT httplog_pkey PRIMARY KEY (logid)
 )
 WITH (
   OIDS=FALSE
