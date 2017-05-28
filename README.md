@@ -122,8 +122,8 @@ httplog_send_message INFO 'Hello World!'
 %SystemRoot%\system32\wscript.exe httplog.js "FACILITY" "LEVEL" "MESSAGE"
 %SystemRoot%\system32\cscript.exe //nologo httplog.js "FACILITY" "LEVEL" "MESSAGE"
 */
-var baseurl = 'https://log.w3tools.de';
-var hostid = 'w3tools.de:test:2852f2fb-7f29-4204-b624-2f959e888699';
+var baseurl = 'https://log.exaple.com';
+var hostid = 'ACME_Ltd:host.example.com:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
 
 var facility = WScript.Arguments.Unnamed(0);
 var level = WScript.Arguments.Unnamed(1);
