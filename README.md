@@ -115,5 +115,4 @@ httplog_send_message "$2" "$3"
 httplog_send_message INFO 'Hello World!'
 ```
 
-<https://log.example.com/ACME_Ltd:host.example.com:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-/FACILITY/HOSTTIME/LEVEL?_=MESSAGE>
+<https://log.example.com/ACME_Ltd:host.example.com:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/FACILITY/HOSTTIME/LEVEL?_=MESSAGE>
