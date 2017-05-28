@@ -55,7 +55,7 @@ pg_insert( pg_connect( "host=localhost dbname=$dbname user=$dbuser password=$dbp
     'facility' => $facility,
     'level'    => $level,
     'message'  => $_REQUEST[ '_' ]
-  ]) or die( 'Bad Request' );
+  ]) or die( $status );
 
 @include( "$host_base.$facility.php" ) || @include( "$host_base.php" );
 

@@ -16,46 +16,6 @@ RewriteRule .* - [R=400,L]
 RewriteRule ^/(?:(query|admin)/)?(.*) /$1log.php/$2
 ```
 
-## /etc/default/httplog
-```bash
-: ${HTTPLOG_BASEURL:="https://log.w3tools.de/$( cat /etc/httplog-hostid )/${HTTPLOG_FACILITY:=${0##*/}}"}
-
-httplog_send_message() {
-  local ts=$( date +%FT%T%z )
-  local level=${1:-INFO}
-  local url="$HTTPLOG_BASEURL/$ts/$level"
-  local message=${2:-<empty>}
-  # echo "curl --insecure --max-time 10 -G \"$url\" --data-urlencode \"_=$message\""
-  curl --insecure --max-time 10 -G "$url" --data-urlencode "_=$message" >/dev/null 2>&1
-  echo "$ts $HTTPLOG_FACILITY $level $message"
-}
-```
-
-## /etc/httplog-hostid
-```
-ACME_Ltd:host.example.com:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-```
-
-## /usr/local/bin/httplog
-```bash
-#!/bin/bash
-
-HTTPLOG_FACILITY="$1"
-
-. /etc/default/httplog
-
-httplog_send_message "$2" "$3"
-```
-
-## /usr/local/bin/foobar
-```bash
-#!/bin/bash
-
-. /etc/default/httplog
-
-httplog_send_message INFO 'Hello World!'
-```
-
 ## Database
 
 ```sql
@@ -112,3 +72,48 @@ ALTER TABLE httplog
 GRANT ALL ON TABLE httplog TO postgres;
 GRANT SELECT, INSERT ON TABLE httplog TO "@httplog";
 ```
+
+## /etc/default/httplog
+```bash
+: ${HTTPLOG_BASEURL:="https://log.example.com/$( cat /etc/httplog-hostid )/${HTTPLOG_FACILITY:=${0##*/}}"}
+
+httplog_send_message() {
+  local ts=$( date +%FT%T%z )
+  local level=${1:-INFO}
+  local url="$HTTPLOG_BASEURL/$ts/$level"
+  local message=${2:-<empty>}
+  # echo "curl --insecure --max-time 10 -G \"$url\" --data-urlencode \"_=$message\""
+  curl --insecure --max-time 10 -G "$url" --data-urlencode "_=$message" >/dev/null 2>&1
+  echo "$ts $HTTPLOG_FACILITY $level $message"
+}
+```
+
+## Client
+
+### /etc/httplog-hostid
+```
+ACME_Ltd:host.example.com:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+```
+
+### /usr/local/bin/httplog
+```bash
+#!/bin/bash
+
+HTTPLOG_FACILITY="$1"
+
+. /etc/default/httplog
+
+httplog_send_message "$2" "$3"
+```
+
+### /usr/local/bin/foobar
+```bash
+#!/bin/bash
+
+. /etc/default/httplog
+
+httplog_send_message INFO 'Hello World!'
+```
+
+<https://log.example.com/ACME_Ltd:host.example.com:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+/FACILITY/HOSTTIME/LEVEL?_=MESSAGE>

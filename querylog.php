@@ -65,10 +65,11 @@ $pgview = 'view_' . sha1( "${group}_${view}_${qryfilter}" );
 
 @pg_connect( "host=localhost dbname=$dbname user=$dbuser password=$dbpass" ) or die( $status );
 
+$logid = $super ? 'logid' : "'' as logid";
 $query = <<<EOT
 create temporary view "$pgview" as
     select
-        logid, logtime, hosttime, remote_addr, hostname, facility, level, message
+        $logid, logtime, hosttime, remote_addr, hostname, facility, level, message
       from $dbtable
       where (
         ( $groups )
@@ -82,7 +83,7 @@ create temporary view "$pgview" as
       order by logtime desc;
 EOT;
 
-@pg_query( $query ) or die( $status . $query);
+@pg_query( $query ) or die( $status );
 
 $result = @pg_query( "select * from \"$pgview\" limit 500;" ) or die( $status );
 
@@ -131,7 +132,7 @@ tr.level_ERROR:hover   { background-color: #fbb; color: #000; }
 while( $row = pg_fetch_assoc( $result ) ) { 
 $level = $row[ 'level' ];
 printf( "<tr class=\"level_$level\"><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n",
-  $super ? $row[ 'logid' ] : '',
+  $row[ 'logid' ],
   $row[ 'logtime' ],
   $row[ 'hosttime' ],
   $row[ 'remote_addr' ],
