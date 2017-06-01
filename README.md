@@ -74,7 +74,8 @@ GRANT SELECT, INSERT ON TABLE httplog TO "@httplog";
 ## /etc/default/httplog
 
 ```bash
-: ${HTTPLOG_BASEURL:="https://log.example.com/$( cat /etc/httplog-hostid )/${HTTPLOG_FACILITY:=${0##*/}}"}
+: ${HTTPLOG_FACILITY:=${0##*/}}
+: ${HTTPLOG_BASEURL:="https://log.w3tools.de/$( cat /etc/httplog-hostid )/${HTTPLOG_FACILITY}"}
 
 httplog_send_message() {
   local ts=$( date +%FT%T%z )
@@ -96,7 +97,7 @@ ACME_Ltd:host.example.com:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ### /usr/local/bin/httplog
 
 ```bash
-#!/bin/bash
+#!/bin/sh
 
 HTTPLOG_FACILITY="$1"
 
@@ -108,7 +109,7 @@ httplog_send_message "$2" "$3"
 ### /usr/local/bin/foobar
 
 ```bash
-#!/bin/bash
+#!/bin/sh
 
 . /etc/default/httplog
 
