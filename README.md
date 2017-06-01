@@ -78,10 +78,10 @@ GRANT SELECT, INSERT ON TABLE httplog TO "@httplog";
 : ${HTTPLOG_BASEURL:="https://log.w3tools.de/$( cat /etc/httplog-hostid )/${HTTPLOG_FACILITY}"}
 
 httplog_send_message() {
-  local ts=$( date +%FT%T%z )
-  local level=${1:-INFO}
+  local ts="$( date +%FT%T%z )"
+  local level="${1:-INFO}"
   local url="$HTTPLOG_BASEURL/$ts/$level"
-  local message=${2:-<empty>}
+  local message="${2:-<empty>}"
   # echo "curl --insecure --max-time 10 -G \"$url\" --data-urlencode \"_=$message\""
   curl --insecure --max-time 10 -G "$url" --data-urlencode "_=$message" >/dev/null 2>&1
   echo "$ts $HTTPLOG_FACILITY $level $message"
